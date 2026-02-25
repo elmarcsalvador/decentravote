@@ -5,7 +5,7 @@
 > **Development/Protoype/Concept Model. Not intended for Practical/Real World Applications**
 
 > [!WARNING]
-> **Requires Ganache for Devoper testing**
+> **Requires Ganache and Mongodb**
 
 > [!IMPORTANT]
 > **Must install all dependencies**
