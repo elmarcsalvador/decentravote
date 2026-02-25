@@ -1,0 +1,5 @@
+Flask
+Flask-Cors
+web3
+pymongo
+py-solc-x
