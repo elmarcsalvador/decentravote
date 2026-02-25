@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - DecentraVote</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg-color: #0f172a; --card-bg: #1e293b; --text-color: #f8fafc; --text-muted: #94a3b8; --primary: #3b82f6; --primary-hover: #2563eb; --success: #10b981; --error: #ef4444; --border: #334155; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg-color); color: var(--text-color); margin: 0; padding: 0; min-height: 100vh;}
+        header { width: 100%; padding: 20px 5%; background: var(--card-bg); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; }
+        header h1 { margin: 0; font-size: 1.5rem; }
+        .nav-link { color: var(--text-muted); text-decoration: none; font-weight: 600; }
+        .nav-link:hover { color: var(--text-color); }
+        .container { display: grid; grid-template-columns: 1fr; gap: 20px; padding: 30px 5%; max-width: 1200px; margin: 0 auto; }
+        @media(min-width: 800px) { .container { grid-template-columns: 1fr 1fr; } }
+        .card { background: var(--card-bg); padding: 30px; border-radius: 12px; border: 1px solid var(--border); box-sizing: border-box; margin-bottom: 20px; }
+        .card h3 { margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        input { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-color); color: var(--text-color); box-sizing: border-box; }
+        button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: var(--primary); color: white; font-weight: 600; cursor: pointer; }
+        button:hover { background: var(--primary-hover); }
+        .alert { margin-top: 15px; padding: 12px; border-radius: 8px; font-size: 0.9rem; display: none; }
+        .alert.success { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid var(--success); display: block; }
+        .alert.error { background: rgba(239, 68, 68, 0.1); color: var(--error); border: 1px solid var(--error); display: block; }
+        #adminPanel { display: none; }
+        .login-wrapper { display: flex; justify-content: center; margin-top: 50px; }
+        .login-card { max-width: 400px; width: 100%; }
+        .candidate-item { display: flex; justify-content: space-between; padding: 12px; background: var(--bg-color); margin-bottom: 8px; border-radius: 8px; border: 1px solid var(--border); }
+        .badge { background: var(--primary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>⚙️ Admin Dashboard</h1>
+    <a href="index.html" class="nav-link">← Back to Voting</a>
+</header>
+
+<div class="login-wrapper" id="loginWrapper">
+    <div class="card login-card">
+        <h3>Admin Login</h3>
+        <input type="text" id="username" placeholder="Username (admin)">
+        <input type="password" id="password" placeholder="Password (admin123)">
+        <button onclick="login()">Login</button>
+        <div id="loginAlert" class="alert"></div>
+    </div>
+</div>
+
+<div class="container" id="adminPanel">
+    <div class="left-col">
+        <div class="card">
+            <h3>➕ Add Candidate</h3>
+            <input id="newCandidateName" placeholder="Candidate Name">
+            <button id="addCandBtn" onclick="addCandidate()">Submit to Blockchain</button>
+            <div id="addCandAlert" class="alert"></div>
+        </div>
+        
+        <div class="card">
+            <h3>👥 Leaderboard</h3>
+            <div id="candidateList">Loading...</div>
+        </div>
+    </div>
+
+    <div class="right-col">
+        <div class="card">
+            <h3>📊 Live Results</h3>
+            <canvas id="chart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = "http://127.0.0.1:5000";
+let chart;
+let intervalId;
+
+function showAlert(element, message, type) {
+    element.className = `alert ${type}`;
+    element.innerText = message;
+    setTimeout(() => { element.className = 'alert'; }, 4000);
+}
+
+async function login() {
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+
+    try {
+        const res = await fetch(API + "/admin_login", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({username, password}) });
+        const data = await res.json();
+
+        if (data.success) {
+            document.getElementById("loginWrapper").style.display = "none";
+            document.getElementById("adminPanel").style.display = "grid";
+            loadCandidates();
+            intervalId = setInterval(loadCandidates, 5000); // Auto-refresh scores only when logged in
+        } else {
+            showAlert(document.getElementById("loginAlert"), data.message, "error");
+        }
+    } catch (e) { showAlert(document.getElementById("loginAlert"), "Server error", "error"); }
+}
+
+async function addCandidate() {
+    const name = document.getElementById("newCandidateName").value;
+    const btn = document.getElementById("addCandBtn");
+    if(!name) return;
+
+    btn.disabled = true; btn.innerText = "Mining Transaction...";
+    try {
+        const res = await fetch(API + "/add_candidate", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({name}) });
+        const data = await res.json();
+        showAlert(document.getElementById("addCandAlert"), data.message, data.success ? "success" : "error");
+        if(data.success) {
+            document.getElementById("newCandidateName").value = "";
+            loadCandidates();
+        }
+    } catch (e) { showAlert(document.getElementById("addCandAlert"), "Server error.", "error"); }
+    btn.disabled = false; btn.innerText = "Submit to Blockchain";
+}
+
+async function loadCandidates() {
+    try {
+        const res = await fetch(API + "/candidates");
+        const data = await res.json();
+        const list = document.getElementById("candidateList");
+        list.innerHTML = "";
+        let labels = [], votes = [];
+
+        data.forEach(c => {
+            list.innerHTML += `<div class="candidate-item"><span>${c.name}</span><span class="badge">${c.votes} Votes</span></div>`;
+            labels.push(c.name); votes.push(c.votes);
+        });
+        updateChart(labels, votes);
+    } catch(e) { console.error("Could not load candidates", e); }
+}
+
+function updateChart(labels, votes) {
+    if (chart) chart.destroy();
+    const ctx = document.getElementById("chart").getContext("2d");
+    chart = new Chart(ctx, {
+        type: "bar",
+        data: { labels: labels, datasets: [{ label: "Total Votes", data: votes, backgroundColor: "#3b82f6", borderRadius: 4 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: '#334155' } }, x: { ticks: { color: '#94a3b8' }, grid: { display: false } } } }
+    });
+}
+</script>
+</body>
+</html>

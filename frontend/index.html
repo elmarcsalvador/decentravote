@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DecentraVote Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a; --card-bg: #1e293b; --text-color: #f8fafc;
+            --text-muted: #94a3b8; --primary: #3b82f6; --primary-hover: #2563eb;
+            --success: #10b981; --error: #ef4444; --border: #334155;
+        }
+        body.light-mode {
+            --bg-color: #f1f5f9; --card-bg: #ffffff; --text-color: #0f172a;
+            --text-muted: #64748b; --primary: #2563eb; --primary-hover: #1d4ed8; --border: #e2e8f0;
+        }
+        * { box-sizing: border-box; transition: background-color 0.3s, color 0.3s; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg-color); color: var(--text-color); margin: 0; padding: 0; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 20px 5%; background: var(--card-bg); border-bottom: 1px solid var(--border); }
+        header h1 { margin: 0; font-size: 1.5rem; display: flex; align-items: center; gap: 10px; }
+        .header-actions { display: flex; gap: 15px; align-items: center; }
+        .nav-link { color: var(--text-muted); text-decoration: none; font-weight: 600; font-size: 0.9rem;}
+        .nav-link:hover { color: var(--text-color); }
+        .container { display: flex; flex-direction: column; gap: 20px; padding: 30px 5%; max-width: 600px; margin: 0 auto; }
+        .card { background: var(--card-bg); padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid var(--border); }
+        .card h3 { margin-top: 0; margin-bottom: 15px; font-size: 1.25rem; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        input, select { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-color); color: var(--text-color); font-family: 'Inter', sans-serif; }
+        input:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+        button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: var(--primary); color: white; font-weight: 600; font-size: 1rem; cursor: pointer; transition: 0.2s; }
+        button:hover { background: var(--primary-hover); }
+        button:disabled { background: var(--text-muted); cursor: not-allowed; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-color); padding: 8px 12px;}
+        .btn-outline:hover { background: var(--border); }
+        .alert { margin-top: 15px; padding: 12px; border-radius: 8px; font-size: 0.9rem; display: none; }
+        .alert.success { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid var(--success); display: block; }
+        .alert.error { background: rgba(239, 68, 68, 0.1); color: var(--error); border: 1px solid var(--error); display: block; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🗳 DecentraVote Pro</h1>
+    <div class="header-actions">
+        <a href="candidate.html" class="nav-link">Candidate Portal</a>
+        <a href="admin.html" class="nav-link">Admin Login</a>
+        <button class="btn-outline" onclick="toggleMode()">🌓</button>
+    </div>
+</header>
+
+<div class="container">
+    <div class="card">
+        <h3>📝 Voter Registration</h3>
+        <input id="name" placeholder="Full Name">
+        <input id="regWallet" placeholder="Paste your Ganache Wallet Address">
+        <button id="regBtn" onclick="register()">Register to Vote</button>
+        <div id="regAlert" class="alert"></div>
+    </div>
+
+    <div class="card">
+        <h3>✅ Cast Your Vote</h3>
+        <input id="voteWallet" placeholder="Confirm your Wallet Address">
+        <select id="candidateSelect">
+            <option value="">Loading candidates...</option>
+        </select>
+        <button id="voteBtn" onclick="vote()">Submit Vote</button>
+        <div id="voteAlert" class="alert"></div>
+    </div>
+</div>
+
+<script>
+const API = "http://127.0.0.1:5000";
+
+if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) document.body.classList.add("light-mode");
+function toggleMode() { document.body.classList.toggle("light-mode"); }
+function showAlert(element, message, type) {
+    element.className = `alert ${type}`;
+    element.innerText = message;
+    setTimeout(() => { element.className = 'alert'; }, 5000);
+}
+
+async function register() {
+    const name = document.getElementById("name").value;
+    const wallet = document.getElementById("regWallet").value;
+    const btn = document.getElementById("regBtn");
+
+    if (!name || !wallet) return showAlert(document.getElementById("regAlert"), "Please fill all fields.", "error");
+    btn.disabled = true; btn.innerText = "Registering...";
+
+    try {
+        const res = await fetch(API + "/register", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({name, wallet}) });
+        const data = await res.json();
+        showAlert(document.getElementById("regAlert"), data.message, data.success ? "success" : "error");
+        if(data.success) document.getElementById("voteWallet").value = wallet;
+    } catch (e) { showAlert(document.getElementById("regAlert"), "Server error", "error"); }
+    btn.disabled = false; btn.innerText = "Register to Vote";
+}
+
+async function loadDropdownCandidates() {
+    try {
+        const res = await fetch(API + "/candidates");
+        const data = await res.json();
+        const select = document.getElementById("candidateSelect");
+        select.innerHTML = "<option value=''>-- Select a Candidate --</option>";
+        data.forEach(c => select.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+    } catch(e) { console.error("Could not load candidates:", e); }
+}
+
+async function vote() {
+    const wallet = document.getElementById("voteWallet").value;
+    const candidate_id = document.getElementById("candidateSelect").value;
+    const btn = document.getElementById("voteBtn");
+
+    if (!wallet || !candidate_id) return showAlert(document.getElementById("voteAlert"), "Please fill all fields.", "error");
+    btn.disabled = true; btn.innerText = "Casting Vote...";
+
+    try {
+        const res = await fetch(API + "/vote", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({wallet, candidate_id}) });
+        const data = await res.json();
+        showAlert(document.getElementById("voteAlert"), data.message, data.success ? "success" : "error");
+    } catch(e) { showAlert(document.getElementById("voteAlert"), "Transaction failed.", "error"); }
+    btn.disabled = false; btn.innerText = "Submit Vote";
+}
+
+loadDropdownCandidates(); // Load once, no need to refresh since users just vote
+</script>
+</body>
+</html>

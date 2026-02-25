@@ -1,2 +1,2 @@
-# block-vote
+# BLOCK VOTE
 Blockchain Based E-Voting System
