@@ -1,5 +1,5 @@
 1. Abstract
-Project Title: DecentraVote Pro
+Project Title: DecentraVote
 
 Abstract:
 Traditional voting systems often face critical challenges, including vulnerabilities to tampering, lack of transparency, and high logistical costs. "DecentraVote" is a secure, decentralized e-voting system designed to address these issues by leveraging blockchain technology. The core of the application is built on Ethereum smart contracts written in Solidity , which ensures that once a vote is cast, it becomes an immutable and verifiable record on the blockchain.
